@@ -400,7 +400,7 @@ Models compared:
 With:
 
 * ESRGAN
-* SwinIR
+* SwinIR (referenced in code; no recorded result)
 * SAHI slicing
 * NWD localization
 
@@ -408,49 +408,21 @@ With:
 
 # Experimental Observations
 
-## VisDrone 2×
+Read from the training logs of the joint ESRGAN + RT-DETR + NWD notebook
+(`rtdetr-esrgan-nwd-joint-training-on-aitod-and-vis`):
 
-* Stable convergence
-* Strong recall improvement
-* Better localization consistency
-* Reduced false negatives
+* Training loss went down in all four runs (e.g. best loss 0.805 for
+  VisDrone 2×, 1.195 for VisDrone 4×).
+* AI-TOD 4×: the NWD localization loss kept falling while the classification
+  loss became unstable and the total loss rose slightly at the end. My reading
+  was a trade-off between localization and semantic consistency at extreme SR
+  scales, but that is an interpretation of loss curves only.
 
----
-
-## VisDrone 4×
-
-* Improved tiny-object reconstruction
-* Better NWD alignment
-* Strong localization performance
-
----
-
-## AI-TOD 2×
-
-* Most stable training setup
-* Best semantic consistency
-* Strong tiny-object recall
-
----
-
-## AI-TOD 4×
-
-Observed:
-
-* Decreasing NWD localization loss
-* Increasing classification instability
-* Slight increase in final total loss
-
-### Key Insight
-
-Aggressive 4× super-resolution improved localization while simultaneously introducing semantic instability for ultra-tiny aerial targets.
-
-This highlighted an important trade-off between:
-
-* Localization precision
-* Semantic consistency
-
-for extreme SR scales.
+**The evaluation at the end of the same notebook recorded 0.0000 mAP@50,
+mAP@50-95, precision and recall for all four runs** (VisDrone 2×/4×,
+AI-TOD 2×/4×). Falling loss did not turn into working detections, so these runs
+do not show a detection improvement. Most likely an evaluation or label-mapping
+bug, or a detection head that never learned to output boxes; still to debug.
 
 ---
 
@@ -516,48 +488,30 @@ project/
 
 ---
 
-# Key Research Insights
+# What the notebooks measured
 
-## Tiny-object detection is recall-limited
+| Experiment | Result recorded in the notebook |
+|---|---|
+| ESRGAN on 8×-zoom degraded frames (`high-alt-tiny-obj-dtct-with-esrgan-full-pipeline`) | mAP@50 0.0588 clean → 0.0601 with ESRGAN (+0.0013); blur+noise 0.0503 |
+| Joint ESRGAN + RT-DETR + NWD loss (4 runs) | 0.0000 on every metric (see above) |
+| YOLO with IoU-NMS vs NWD-NMS on video (`yolo-on-a-video-iou-nwd-comparision`) | IoU: 12.6–13.7 detections/frame; NWD: 1.0/frame. Same speed (±0.3 ms) |
+| YOLOv8-L + ESRGAN joint training | mAP@50 ≈ 0.55 in the final logged metrics |
 
-Most failures occur because:
+What this supports: ESRGAN made almost no difference to mAP on the degraded
+frames, and NWD-based NMS as implemented collapses detections to about one per
+frame, which points to a threshold or scaling problem rather than an
+improvement over IoU.
 
-* tiny targets are missed
-* not because they are incorrectly classified
+# Hypotheses still to test
 
----
-
-## NWD outperforms IoU for tiny-object localization
-
-NWD provides:
-
-* stable gradients
-* better localization learning
-* improved tiny-object optimization
-
----
-
-## Task-driven SR is more important than visual SR
-
-Detection models prioritize:
-
-* semantic consistency
-* feature stability
-* object structure
-
-rather than photorealistic textures.
-
----
-
-## SwinIR may outperform ESRGAN for AI-TOD
-
-Transformer-based SR models provide:
-
-* reduced hallucination
-* better structural consistency
-* more stable feature representations
-
-for ultra-small aerial targets.
+* **NWD for tiny-object localization.** The motivation (smoother gradients for
+  boxes a few pixels wide) is from the NWD paper. It is not shown here: the
+  NWD runs above either produced no detections or suppressed almost all of them.
+* **Task-driven vs. visually optimized SR.** Not compared directly yet.
+* **SwinIR vs. ESRGAN.** SwinIR appears in the code, but no SwinIR result is
+  recorded.
+* **Recall as the main failure mode.** Plausible for tiny objects, but there is
+  no error breakdown (missed vs. misclassified) in the notebooks yet.
 
 ---
 
