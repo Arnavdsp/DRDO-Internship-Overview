@@ -400,7 +400,7 @@ Models compared:
 With:
 
 * ESRGAN
-* SwinIR
+* SwinIR (referenced in code; no recorded result)
 * SAHI slicing
 * NWD localization
 
@@ -408,49 +408,21 @@ With:
 
 # Experimental Observations
 
-## VisDrone 2×
+Read from the training logs of the joint ESRGAN + RT-DETR + NWD notebook
+(`rtdetr-esrgan-nwd-joint-training-on-aitod-and-vis`):
 
-* Stable convergence
-* Strong recall improvement
-* Better localization consistency
-* Reduced false negatives
+* VisDrone 2× trained for 10 epochs (best loss 0.805).
+* VisDrone 4× ran 3 epochs, not 10 (best loss 1.195).
+* AI-TOD 2× logged all 10 epochs, but the output stops before the run's
+  completion line.
+* AI-TOD 4× has no training output in the notebook.
 
----
-
-## VisDrone 4×
-
-* Improved tiny-object reconstruction
-* Better NWD alignment
-* Strong localization performance
-
----
-
-## AI-TOD 2×
-
-* Most stable training setup
-* Best semantic consistency
-* Strong tiny-object recall
-
----
-
-## AI-TOD 4×
-
-Observed:
-
-* Decreasing NWD localization loss
-* Increasing classification instability
-* Slight increase in final total loss
-
-### Key Insight
-
-Aggressive 4× super-resolution improved localization while simultaneously introducing semantic instability for ultra-tiny aerial targets.
-
-This highlighted an important trade-off between:
-
-* Localization precision
-* Semantic consistency
-
-for extreme SR scales.
+**The final evaluation never ran on a trained model.** The notebook reports
+"Checkpoint not found" for all four runs (`runs/*/best.pt` missing), then prints
+a table of 0.0000 for mAP@50, mAP@50-95, precision and recall. Those zeros are
+fallback values, not measured performance, so these runs show nothing about
+detection quality either way. Training logged "Best saved", but the checkpoints
+were not found when evaluation ran; the cause isn't recorded in the notebook.
 
 ---
 
@@ -516,48 +488,31 @@ project/
 
 ---
 
-# Key Research Insights
+# What the notebooks measured
 
-## Tiny-object detection is recall-limited
+| Experiment | Result recorded in the notebook |
+|---|---|
+| ESRGAN on 8×-zoom degraded frames (`high-alt-tiny-obj-dtct-with-esrgan-full-pipeline`) | mAP@50 0.0588 clean → 0.0601 with ESRGAN (+0.0013); blur+noise 0.0503 |
+| Joint ESRGAN + RT-DETR + NWD loss (4 runs) | Not evaluated: checkpoints missing, table shows fallback zeros (see above) |
+| YOLO with IoU-NMS vs NWD-NMS on video (`yolo-on-a-video-iou-nwd-comparision`) | IoU: 12.6–13.7 detections/frame; NWD: 1.0/frame. Same speed (±0.3 ms) |
+| YOLOv8-L on bicubic-upscaled inputs (ESRGAN step still a placeholder) | mAP@50 ≈ 0.55 in the final logged metrics |
 
-Most failures occur because:
+What this supports: ESRGAN made almost no difference to mAP on the degraded
+frames, and NWD-based NMS as implemented collapses detections to about one per
+frame, which points to a threshold or scaling problem rather than an
+improvement over IoU.
 
-* tiny targets are missed
-* not because they are incorrectly classified
+# Hypotheses still to test
 
----
-
-## NWD outperforms IoU for tiny-object localization
-
-NWD provides:
-
-* stable gradients
-* better localization learning
-* improved tiny-object optimization
-
----
-
-## Task-driven SR is more important than visual SR
-
-Detection models prioritize:
-
-* semantic consistency
-* feature stability
-* object structure
-
-rather than photorealistic textures.
-
----
-
-## SwinIR may outperform ESRGAN for AI-TOD
-
-Transformer-based SR models provide:
-
-* reduced hallucination
-* better structural consistency
-* more stable feature representations
-
-for ultra-small aerial targets.
+* **NWD for tiny-object localization.** The motivation (smoother gradients for
+  boxes a few pixels wide) is from the NWD paper. It is not shown here: the
+  joint NWD runs above were never evaluated, and NWD-NMS suppressed almost all
+  detections.
+* **Task-driven vs. visually optimized SR.** Not compared directly yet.
+* **SwinIR vs. ESRGAN.** SwinIR appears in the code, but no SwinIR result is
+  recorded.
+* **Recall as the main failure mode.** Plausible for tiny objects, but there is
+  no error breakdown (missed vs. misclassified) in the notebooks yet.
 
 ---
 
