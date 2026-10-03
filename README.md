@@ -421,8 +421,8 @@ Read from the training logs of the joint ESRGAN + RT-DETR + NWD notebook
 "Checkpoint not found" for all four runs (`runs/*/best.pt` missing), then prints
 a table of 0.0000 for mAP@50, mAP@50-95, precision and recall. Those zeros are
 fallback values, not measured performance, so these runs show nothing about
-detection quality either way. The checkpoints were most likely never saved to
-`/kaggle/working/runs/` or were lost when the session ended.
+detection quality either way. Training logged "Best saved", but the checkpoints
+were not found when evaluation ran; the cause isn't recorded in the notebook.
 
 ---
 
