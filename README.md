@@ -411,18 +411,18 @@ With:
 Read from the training logs of the joint ESRGAN + RT-DETR + NWD notebook
 (`rtdetr-esrgan-nwd-joint-training-on-aitod-and-vis`):
 
-* Training loss went down in all four runs (e.g. best loss 0.805 for
-  VisDrone 2×, 1.195 for VisDrone 4×).
-* AI-TOD 4×: the NWD localization loss kept falling while the classification
-  loss became unstable and the total loss rose slightly at the end. My reading
-  was a trade-off between localization and semantic consistency at extreme SR
-  scales, but that is an interpretation of loss curves only.
+* VisDrone 2× trained for 10 epochs (best loss 0.805).
+* VisDrone 4× ran 3 epochs, not 10 (best loss 1.195).
+* AI-TOD 2× logged all 10 epochs, but the output stops before the run's
+  completion line.
+* AI-TOD 4× has no training output in the notebook.
 
-**The evaluation at the end of the same notebook recorded 0.0000 mAP@50,
-mAP@50-95, precision and recall for all four runs** (VisDrone 2×/4×,
-AI-TOD 2×/4×). Falling loss did not turn into working detections, so these runs
-do not show a detection improvement. Most likely an evaluation or label-mapping
-bug, or a detection head that never learned to output boxes; still to debug.
+**The final evaluation never ran on a trained model.** The notebook reports
+"Checkpoint not found" for all four runs (`runs/*/best.pt` missing), then prints
+a table of 0.0000 for mAP@50, mAP@50-95, precision and recall. Those zeros are
+fallback values, not measured performance, so these runs show nothing about
+detection quality either way. The checkpoints were most likely never saved to
+`/kaggle/working/runs/` or were lost when the session ended.
 
 ---
 
@@ -493,9 +493,9 @@ project/
 | Experiment | Result recorded in the notebook |
 |---|---|
 | ESRGAN on 8×-zoom degraded frames (`high-alt-tiny-obj-dtct-with-esrgan-full-pipeline`) | mAP@50 0.0588 clean → 0.0601 with ESRGAN (+0.0013); blur+noise 0.0503 |
-| Joint ESRGAN + RT-DETR + NWD loss (4 runs) | 0.0000 on every metric (see above) |
+| Joint ESRGAN + RT-DETR + NWD loss (4 runs) | Not evaluated: checkpoints missing, table shows fallback zeros (see above) |
 | YOLO with IoU-NMS vs NWD-NMS on video (`yolo-on-a-video-iou-nwd-comparision`) | IoU: 12.6–13.7 detections/frame; NWD: 1.0/frame. Same speed (±0.3 ms) |
-| YOLOv8-L + ESRGAN joint training | mAP@50 ≈ 0.55 in the final logged metrics |
+| YOLOv8-L on bicubic-upscaled inputs (ESRGAN step still a placeholder) | mAP@50 ≈ 0.55 in the final logged metrics |
 
 What this supports: ESRGAN made almost no difference to mAP on the degraded
 frames, and NWD-based NMS as implemented collapses detections to about one per
@@ -506,7 +506,8 @@ improvement over IoU.
 
 * **NWD for tiny-object localization.** The motivation (smoother gradients for
   boxes a few pixels wide) is from the NWD paper. It is not shown here: the
-  NWD runs above either produced no detections or suppressed almost all of them.
+  joint NWD runs above were never evaluated, and NWD-NMS suppressed almost all
+  detections.
 * **Task-driven vs. visually optimized SR.** Not compared directly yet.
 * **SwinIR vs. ESRGAN.** SwinIR appears in the code, but no SwinIR result is
   recorded.
