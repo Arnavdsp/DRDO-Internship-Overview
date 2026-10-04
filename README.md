@@ -138,8 +138,8 @@ NWD models a bounding box `(cx, cy, w, h)` as a Gaussian `N(μ, Σ)` instead of
 a rectangle, where:
 
 ```text
-Σ = [[w²/12, 0],
-     [0, h²/12]]
+Σ = [[w²/4, 0],
+     [0, h²/4]]
 ```
 
 Compared with IoU, this should give smoother gradients, more stable
