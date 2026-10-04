@@ -1,87 +1,58 @@
-# High-Altitude Tiny Object Detection using RT-DETR-L, ESRGAN, SwinIR, SAHI, and NWD Loss
+# High-altitude tiny object detection with RT-DETR-L, ESRGAN, SwinIR, SAHI and NWD loss
 
-## Task-Driven Super-Resolution for Tiny Aerial Object Detection on VisDrone2019-DET and AI-TOD
-
----
+Task-driven super-resolution for tiny aerial object detection on VisDrone2019-DET
+and AI-TOD. Work from my DRDO internship.
 
 ## Overview
 
-This project focuses on high-altitude tiny object detection in aerial imagery using Task-Driven Super-Resolution (TDSR), transformer-based object detection, and advanced localization losses.
+The goal was to detect very small targets, such as vehicles and aircraft, in
+imagery taken from around 6 km up. At that altitude an object covers only a few
+pixels and is blurred by the atmosphere and limited by sensor resolution.
 
-The system is designed to improve the detectability of extremely small aerial targets such as vehicles and aircraft captured from high altitudes (~6 km), where objects occupy only a few pixels and are heavily affected by blur, atmospheric distortion, and low spatial resolution.
+The project combines:
 
-The project integrates:
-
-* RT-DETR-L for transformer-based detection
-* ESRGAN and SwinIR for super-resolution
+* RT-DETR-L, a transformer-based detector
+* ESRGAN and SwinIR for super-resolution (SR)
 * SAHI for slicing-assisted inference
-* NWD (Normalized Wasserstein Distance) loss for tiny-object localization
-* Joint training between SR and detection modules
-* Comparative analysis against IoU-based localization
+* NWD (Normalized Wasserstein Distance) loss for localizing tiny objects
+* Joint training of the SR and detection models
+* A comparison against IoU-based localization
 
----
+## The problem
 
-# Problem Statement
+Tiny objects are hard for standard detectors. Vehicles and aircraft cover very
+few pixels, atmospheric blur and sensor noise hide them further, and a small
+localization error changes IoU a lot, which makes IoU-based losses unstable for
+very small boxes.
 
-Tiny object detection in aerial imagery presents several challenges:
+The questions I set out to test:
 
-* Vehicles and aircraft occupy very few pixels
-* Atmospheric blur and sensor noise degrade visibility
-* Small localization errors severely affect IoU
-* Conventional detectors struggle with tiny targets
-* Standard IoU losses become unstable for ultra-small objects
+* Does super-resolution make tiny objects easier to detect?
+* Does SR trained for detection (task-driven) beat SR trained to look good?
+* Does NWD loss make localization of very small targets more stable?
+* Do transformer-based SR models beat GAN-based SR on aerial imagery?
 
-This project investigates whether:
+The results so far are in [What the notebooks measured](#what-the-notebooks-measured);
+most of these are still open.
 
-* Super-resolution can improve tiny-object detectability
-* Task-driven SR can outperform visually optimized SR
-* NWD loss can stabilize localization for ultra-small targets
-* Transformer-based SR models outperform GAN-based SR for aerial imagery
+## Datasets
 
----
+### VisDrone2019-DET
 
-# Datasets
+Used for extracting tiny vehicles, high-altitude vehicle detection, the blur
+and noise degradation experiments, SR-assisted detection, and RT-DETR-L
+training and evaluation. The filtered classes are cars, vans, trucks and buses.
 
-## VisDrone2019-DET
+### AI-TOD
 
-Used for:
+AI-TOD is built for tiny object detection in aerial imagery. Objects are often
+5–15 pixels wide and sparsely distributed, so scale is a problem and
+localization errors matter a lot.
 
-* Tiny vehicle extraction
-* High-altitude vehicle detection
-* Blur and noise degradation experiments
-* Super-resolution-assisted detection
-* RT-DETR-L training and evaluation
+Used for ESRGAN/SwinIR joint training, NWD-based localization, tiny-object
+benchmarks and the IoU vs NWD comparison.
 
-Filtered classes include:
-
-* Cars
-* Vans
-* Trucks
-* Buses
-
----
-
-## AI-TOD
-
-AI-TOD is specifically designed for tiny object detection in aerial imagery.
-
-Characteristics:
-
-* Objects often 5–15 pixels wide
-* Sparse target distribution
-* Severe scale challenges
-* Highly sensitive to localization errors
-
-Used for:
-
-* ESRGAN/SwinIR joint training
-* NWD-based localization
-* Tiny-object benchmarking
-* IoU vs NWD comparison
-
----
-
-# Core Pipeline
+## Pipeline
 
 ```text
 VisDrone / AI-TOD
@@ -102,75 +73,36 @@ RT-DETR-L + NWD Loss
 Tiny Object Detection
 ```
 
----
+## Components
 
-# Key Components
+### RT-DETR-L
 
-## RT-DETR-L
+The main detector. I picked it because it's an end-to-end transformer detector
+with anchor-free localization and global feature modelling, it adapts well to
+small objects, and it runs in real time.
 
-RT-DETR-L was used as the primary detection architecture because of:
+### ESRGAN
 
-* End-to-end transformer detection
-* Anchor-free localization
-* Global feature modeling
-* Strong adaptability for small-object detection
-* Real-time inference capability
+Enhanced Super-Resolution GAN, used for 2× and 4× SR and for joint SR-detection
+training. It produces sharp textures and realistic-looking images, but at high
+magnification it hallucinates textures, can make very small targets
+semantically inconsistent, and made classification unstable when SR was
+aggressive.
 
----
+### SwinIR
 
-## ESRGAN
+A transformer-based SR model, explored as an alternative to ESRGAN. The reason
+for trying it: self-attention should keep global structure more consistent,
+hallucinate less texture and give RT-DETR more stable features. If that holds,
+it should improve precision, semantic consistency, the stability of 4× SR
+training and AP_small. None of this has been measured yet; see
+[Hypotheses still to test](#hypotheses-still-to-test).
 
-Enhanced Super-Resolution GAN used for:
+### SAHI (Slicing Aided Hyper Inference)
 
-* 2× Super-Resolution
-* 4× Super-Resolution
-* Joint SR-detection training
-
-### Strengths
-
-* Sharp texture generation
-* High perceptual realism
-* Strong visual enhancement
-
-### Limitations
-
-* Hallucinated textures at high magnification
-* Semantic inconsistencies for ultra-tiny targets
-* Classification instability during aggressive SR
-
----
-
-## SwinIR
-
-Transformer-based super-resolution architecture explored as an alternative to ESRGAN.
-
-### Motivation
-
-SwinIR was investigated because it:
-
-* Preserves semantic structure more effectively
-* Uses self-attention for global feature consistency
-* Reduces hallucinated textures
-* Produces more stable RT-DETR feature representations
-
-### Expected Advantages
-
-* Improved precision
-* Better semantic consistency
-* More stable 4× SR training
-* Improved AP_small performance
-
----
-
-## SAHI (Slicing Aided Hyper Inference)
-
-SAHI was integrated to improve tiny-object detection performance.
-
-### Why SAHI?
-
-Tiny objects become extremely difficult to detect in full-resolution aerial images.
-
-SAHI improves detection by:
+Tiny objects are very hard to find in a full-resolution aerial image. SAHI cuts
+the image into overlapping slices, runs detection on each tile and merges the
+predictions:
 
 ```text
 Large Image
@@ -182,29 +114,17 @@ Detection on Individual Tiles
 Prediction Merging
 ```
 
-Benefits:
+Each tiny object becomes larger relative to the detector input, which is meant
+to improve recall and small-object localization.
 
-* Enlarges tiny objects relative to detector input
-* Improves recall significantly
-* Enhances small-object localization
+## NWD loss (Normalized Wasserstein Distance)
 
----
+A main part of this project is comparing IoU-based and NWD-based localization.
 
-# NWD Loss (Normalized Wasserstein Distance)
+### The problem with IoU for tiny objects
 
-One of the primary research contributions of this project is the comparison between IoU-based localization and NWD-based localization.
-
----
-
-## Problem with IoU for Tiny Objects
-
-For ultra-small objects:
-
-* A 1–2 pixel shift can drastically reduce IoU
-* Tiny localization errors create unstable gradients
-* Learning becomes inconsistent
-
-Example:
+For very small objects, a 1–2 pixel shift can reduce IoU drastically, so small
+localization errors give unstable gradients and learning becomes inconsistent.
 
 ```text
 Ground Truth Box: 6×6
@@ -212,110 +132,44 @@ Prediction Shifted by 2 Pixels
 → IoU collapses rapidly
 ```
 
----
+### How NWD handles it
 
-## NWD Solution
-
-NWD models bounding boxes as Gaussian distributions instead of rectangles.
-
-Bounding Box:
+NWD models a bounding box `(cx, cy, w, h)` as a Gaussian `N(μ, Σ)` instead of
+a rectangle, where:
 
 ```text
-(cx, cy, w, h)
+Σ = [[w²/4, 0],
+     [0, h²/4]]
 ```
 
-becomes:
+Compared with IoU, this should give smoother gradients, more stable
+localization learning, less sensitivity to small pixel shifts, and better
+alignment and optimization for tiny targets. It should matter most on AI-TOD,
+tiny VisDrone vehicles and high-altitude ISR imagery. These benefits come from
+the NWD paper; this repo hasn't confirmed them yet.
 
-```text
-N(μ, Σ)
-```
+## Loss functions
 
-where:
+* Pixel loss keeps spatial consistency, geometric structure and an accurate
+  reconstruction.
+* VGG-based perceptual loss keeps semantic structure, makes objects
+  recognizable and keeps features consistent.
+* Adversarial (GAN) loss improves visual sharpness and perceptual detail, but
+  can hallucinate textures on very small objects.
 
-```text
-Σ = [[w²/12, 0],
-     [0, h²/12]]
-```
-
----
-
-## Advantages of NWD
-
-Compared to IoU, NWD provides:
-
-* Smoother gradients
-* Stable localization learning
-* Robustness to tiny pixel shifts
-* Better tiny-object alignment
-* Improved optimization for aerial targets
-
-Especially beneficial for:
-
-* AI-TOD
-* VisDrone tiny vehicles
-* High-altitude ISR scenarios
-
----
-
-# Loss Functions
-
-## Pixel Loss
-
-Used to preserve:
-
-* Spatial consistency
-* Geometric structure
-* Accurate reconstruction
-
----
-
-## Perceptual Loss
-
-VGG-based perceptual loss used to preserve:
-
-* Semantic structure
-* Object recognizability
-* Feature-level consistency
-
----
-
-## Adversarial Loss
-
-GAN-based realism optimization used to:
-
-* Improve visual sharpness
-* Enhance perceptual detail
-
-### Limitation
-
-Can introduce hallucinated textures for ultra-small objects.
-
----
-
-## Combined Joint Training Loss
+The joint training loss:
 
 ```text
 L_total = L_cls + L_nwd + λL_sr
 ```
 
-Where:
+where `L_cls` is the classification loss, `L_nwd` the NWD localization loss and
+`L_sr` the super-resolution reconstruction loss.
 
-* L_cls → classification loss
-* L_nwd → NWD localization loss
-* L_sr → super-resolution reconstruction loss
+## Joint training
 
----
-
-# Joint Training
-
-A major focus of this work was task-driven SR through joint optimization.
-
-Instead of training:
-
-* SR separately
-* Detector separately
-
-the pipeline jointly trains:
+The main idea was task-driven SR. Instead of training the SR model and the
+detector separately, the pipeline trains them together:
 
 ```text
 ESRGAN / SwinIR
@@ -323,90 +177,25 @@ ESRGAN / SwinIR
 RT-DETR-L
 ```
 
-This enables:
+That way the detector's gradients shape the SR reconstruction, so SR optimizes
+for detectability instead of appearance and reconstructs with localization in
+mind.
 
-* Detector gradients to influence SR reconstruction
-* SR to optimize for detectability rather than visual beauty
-* Better localization-aware reconstruction
+## Experiments
 
----
+* High-altitude tiny object detection: VisDrone2019-DET, RT-DETR-L, ESRGAN and
+  SAHI slicing-assisted inference.
+* High-altitude vehicle detection: the filtered VisDrone tiny-vehicle set,
+  RT-DETR-L, ESRGAN and SAHI inference.
+* NWD vs IoU: AI-TOD and VisDrone with RT-DETR-L, ESRGAN and joint training,
+  evaluated on localization stability, recall, precision and AP_small.
+* Video: a high-altitude video detection pipeline with SAHI-assisted inference,
+  an NWD vs IoU comparison and tiny-object tracking experiments.
+* Cross-model comparison of YOLOv12-L, YOLOv26-L and RT-DETR-L, combined with
+  ESRGAN, SwinIR (referenced in code; no recorded result), SAHI slicing and NWD
+  localization.
 
-# Experimental Studies
-
-The project includes the following experimental pipelines:
-
----
-
-## High-Altitude Tiny Object Detection
-
-Using:
-
-* VisDrone2019-DET
-* RT-DETR-L
-* ESRGAN
-* SAHI slicing-assisted inference
-
----
-
-## High-Altitude Vehicle Detection
-
-Using:
-
-* Filtered VisDrone tiny vehicle dataset
-* RT-DETR-L
-* ESRGAN
-* SAHI inference
-
----
-
-## NWD vs IoU Comparison
-
-Using:
-
-* AI-TOD
-* VisDrone
-* RT-DETR-L
-* ESRGAN
-* Joint training
-
-Evaluation includes:
-
-* Localization stability
-* Recall comparison
-* Precision comparison
-* AP_small analysis
-
----
-
-## Video-Based Tiny Object Detection
-
-Includes:
-
-* SAHI-assisted inference
-* NWD vs IoU comparison
-* High-altitude video detection pipeline
-* Tiny-object tracking experiments
-
----
-
-## Cross-Model Benchmarking
-
-Models compared:
-
-* YOLOv12-L
-* YOLOv26-L
-* RT-DETR-L
-
-With:
-
-* ESRGAN
-* SwinIR (referenced in code; no recorded result)
-* SAHI slicing
-* NWD localization
-
----
-
-# Experimental Observations
+## Observations from the joint training notebook
 
 Read from the training logs of the joint ESRGAN + RT-DETR + NWD notebook
 (`rtdetr-esrgan-nwd-joint-training-on-aitod-and-vis`):
@@ -417,49 +206,25 @@ Read from the training logs of the joint ESRGAN + RT-DETR + NWD notebook
   completion line.
 * AI-TOD 4× has no training output in the notebook.
 
-**The final evaluation never ran on a trained model.** The notebook reports
+The final evaluation never ran on a trained model. The notebook reports
 "Checkpoint not found" for all four runs (`runs/*/best.pt` missing), then prints
 a table of 0.0000 for mAP@50, mAP@50-95, precision and recall. Those zeros are
 fallback values, not measured performance, so these runs show nothing about
 detection quality either way. Training logged "Best saved", but the checkpoints
 were not found when evaluation ran; the cause isn't recorded in the notebook.
 
----
+## Visualizations
 
-# Visualization and Analysis
+The notebooks and reports include loss curves, NWD trends, SR reconstruction
+comparisons, joint training summaries, qualitative ESRGAN/SwinIR outputs,
+detection results and video inference output (`output_detected.mp4`).
 
-The repository includes:
+## Tools
 
-* Loss convergence plots
-* NWD trend visualization
-* SR reconstruction comparisons
-* Joint training summaries
-* ESRGAN/SwinIR qualitative outputs
-* Detection result visualizations
-* Video inference outputs
+Python, PyTorch, OpenCV, Ultralytics RT-DETR, SAHI, ESRGAN, SwinIR, NumPy and
+Matplotlib, run on Kaggle, Google Colab and Lightning AI.
 
----
-
-# Technologies Used
-
-* Python
-* PyTorch
-* OpenCV
-* Ultralytics RT-DETR
-* SAHI
-* ESRGAN
-* SwinIR
-* NumPy
-* Matplotlib
-* Kaggle
-* Google Colab
-* Lightning AI
-
----
-
-# Hardware
-
-Experiments were conducted using:
+## Hardware
 
 | GPU         | Usage                             |
 | ----------- | --------------------------------- |
@@ -467,28 +232,24 @@ Experiments were conducted using:
 | NVIDIA L4   | Optimized inference               |
 | NVIDIA A10G | Large-scale SR + RT-DETR training |
 
----
-
-# Repository Structure
+## What's in this repository
 
 ```text
-project/
-│
-├── datasets/
-├── augmented/
-├── degraded/
-├── sr_outputs/
-├── checkpoints/
-├── visualizations/
-├── notebooks/
-├── runs/
-├── weights/
-└── README.md
+AI_TOD_dataset_pruning.ipynb                            AI-TOD filtering
+High_alt_Vehicle_Detection.ipynb                        high-altitude vehicle detection
+high-alt-tiny-obj-dtct-with-esrgan-full-pipeline.ipynb  ESRGAN on degraded frames
+rtdetr-esrgan-nwd-joint-training-on-aitod-and-vis.ipynb joint ESRGAN + RT-DETR + NWD
+yolo8-l-esrgan-joint-training-on-aitod-and-vis.ipynb    YOLOv8-L joint training
+rtdetr-on-a-video.ipynb                                 RT-DETR on video
+yolo-on-a-video-iou-nwd-comparision.ipynb               IoU-NMS vs NWD-NMS on video
+output_detected.mp4                                     annotated video output
+*.pdf, *.docx                                           reports for each experiment
 ```
 
----
+Datasets, checkpoints and SR outputs aren't in the repo; the notebooks download
+or generate them on Kaggle and Colab.
 
-# What the notebooks measured
+## What the notebooks measured
 
 | Experiment | Result recorded in the notebook |
 |---|---|
@@ -502,21 +263,19 @@ frames, and NWD-based NMS as implemented collapses detections to about one per
 frame, which points to a threshold or scaling problem rather than an
 improvement over IoU.
 
-# Hypotheses still to test
+## Hypotheses still to test
 
-* **NWD for tiny-object localization.** The motivation (smoother gradients for
+* NWD for tiny-object localization. The motivation (smoother gradients for
   boxes a few pixels wide) is from the NWD paper. It is not shown here: the
   joint NWD runs above were never evaluated, and NWD-NMS suppressed almost all
   detections.
-* **Task-driven vs. visually optimized SR.** Not compared directly yet.
-* **SwinIR vs. ESRGAN.** SwinIR appears in the code, but no SwinIR result is
+* Task-driven vs. visually optimized SR. Not compared directly yet.
+* SwinIR vs. ESRGAN. SwinIR appears in the code, but no SwinIR result is
   recorded.
-* **Recall as the main failure mode.** Plausible for tiny objects, but there is
+* Recall as the main failure mode. Plausible for tiny objects, but there is
   no error breakdown (missed vs. misclassified) in the notebooks yet.
 
----
-
-# Future Work
+## Next steps
 
 * SwinIR + RT-DETR-L joint training
 * Real-ESRGAN integration
@@ -524,39 +283,27 @@ improvement over IoU.
 * Dynamic SR scaling
 * Adaptive NWD weighting
 * Transformer-based task-driven SR
-* AP_small optimization
+* Optimizing for AP_small
 * Real-world ISR deployment experiments
 
----
+## Objective
 
-# Citation
+Improve high-altitude tiny-object detection with task-driven super-resolution,
+transformer-based detection, slicing-assisted inference and localization-aware
+training, for aerial surveillance and ISR.
+
+## Citation
 
 ```bibtex
-@project{tiny_object_sr_rtdetr,
+@misc{tiny_object_sr_rtdetr,
   title={Task-Driven Super-Resolution for Tiny Object Detection using ESRGAN/SwinIR, RT-DETR-L, SAHI, and NWD Loss},
   author={Arnav Deshpande},
   year={2026}
 }
 ```
 
----
+## Author
 
-# Author
-
-Arnav Deshpande
-Indian Institute of Technology Indore
-
-Research Areas:
-
-* Machine Learning
-* Computer Vision
-* Tiny Object Detection
-* Aerial AI Systems
-* Transformer-based Detection
-* Super-Resolution Research
-
----
-
-# Objective
-
-The primary objective of this project is to improve high-altitude tiny-object detection using task-driven super-resolution, transformer-based detection, slicing-assisted inference, and localization-aware optimization for real-world aerial surveillance and ISR applications.
+Arnav Deshpande, Indian Institute of Technology Indore. I work on machine
+learning, computer vision, tiny object detection, aerial AI systems,
+transformer-based detection and super-resolution.
